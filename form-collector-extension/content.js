@@ -58,6 +58,8 @@ function getFormData() {
             fieldType = "dropdown";
             fieldValue = el.value;
             options = Array.from(el.options).map(opt => opt.value);
+            // Try to get label for select
+            labelText = getLabelText(el, true);
 
         // ----------------------------
         // Handle checkboxes
@@ -76,7 +78,7 @@ function getFormData() {
                     let sample = group[0];
                     let hasLabel = checkHasLabel(sample);
                     let hasAutocomplete = sample.hasAttribute("autocomplete");
-                    let labelTextGroup = getLabelText(sample);
+                    let labelTextGroup = getGroupLabelText(sample, group);
 
                     data[el.name] = {
                         type: "checkbox-group",
@@ -109,7 +111,7 @@ function getFormData() {
                 let sample = group[0];
                 let hasLabel = checkHasLabel(sample);
                 let hasAutocomplete = sample.hasAttribute("autocomplete");
-                let labelTextGroup = getLabelText(sample);
+                let labelTextGroup = getGroupLabelText(sample, group);
 
                 data[el.name] = {
                     type: "radio-group",
@@ -193,8 +195,9 @@ function checkHasLabel(el) {
     return hasLabel;
 }
 
-// Helper: get the label text for an input element
-function getLabelText(el) {
+
+// Helper: get the label text for an input/select element
+function getLabelText(el, isSelect = false) {
     let label = null;
     if (el.id) {
         label = document.querySelector(`label[for='${el.id}']`);
@@ -211,6 +214,45 @@ function getLabelText(el) {
             return node ? node.innerText.trim() : "";
         });
         return texts.join(" ").trim();
+    }
+    // For select, try to find a label immediately before
+    if (isSelect) {
+        let prev = el.previousElementSibling;
+        if (prev && prev.tagName && prev.tagName.toLowerCase() === 'label') {
+            return prev.innerText.trim();
+        }
+    }
+    return null;
+}
+
+// Helper: get the label text for a group of radios/checkboxes
+function getGroupLabelText(sample, group) {
+    // Try fieldset > legend
+    let fieldset = sample.closest('fieldset');
+    if (fieldset) {
+        let legend = fieldset.querySelector('legend');
+        if (legend) return legend.innerText.trim();
+    }
+    // Try label before the first element
+    let first = group[0];
+    let prev = first.previousElementSibling;
+    while (prev && (prev.tagName === 'INPUT' || prev.tagName === 'SELECT' || prev.tagName === 'TEXTAREA')) {
+        prev = prev.previousElementSibling;
+    }
+    if (prev && prev.tagName && prev.tagName.toLowerCase() === 'label') {
+        return prev.innerText.trim();
+    }
+    // Try parent label
+    let parentLabel = sample.closest('label');
+    if (parentLabel) return parentLabel.innerText.trim();
+    // Try aria-labelledby
+    if (sample.hasAttribute('aria-labelledby')) {
+        let ids = sample.getAttribute('aria-labelledby').split(' ');
+        let texts = ids.map(id => {
+            let node = document.getElementById(id);
+            return node ? node.innerText.trim() : '';
+        });
+        return texts.join(' ').trim();
     }
     return null;
 }
