@@ -41,6 +41,8 @@ function getFormData() {
         let fieldType = "text";
         let fieldValue = null;
         let options = null;
+        // Get the label text for this element
+        let labelText = getLabelText(el);
 
         // ----------------------------
         // Handle <textarea>
@@ -74,6 +76,7 @@ function getFormData() {
                     let sample = group[0];
                     let hasLabel = checkHasLabel(sample);
                     let hasAutocomplete = sample.hasAttribute("autocomplete");
+                    let labelTextGroup = getLabelText(sample);
 
                     data[el.name] = {
                         type: "checkbox-group",
@@ -81,7 +84,8 @@ function getFormData() {
                         options: options,
                         hasLabel: hasLabel,
                         hasAutocomplete: hasAutocomplete,
-                        isRequired: sample.required || false
+                        isRequired: sample.required || false,
+                        label: labelTextGroup
                     };
                 }
                 return; // Skip duplicate entries
@@ -105,13 +109,15 @@ function getFormData() {
                 let sample = group[0];
                 let hasLabel = checkHasLabel(sample);
                 let hasAutocomplete = sample.hasAttribute("autocomplete");
+                let labelTextGroup = getLabelText(sample);
 
                 data[el.name] = {
                     type: "radio-group",
                     value: fieldValue,
                     options: options,
                     hasLabel: hasLabel,
-                    hasAutocomplete: hasAutocomplete
+                    hasAutocomplete: hasAutocomplete,
+                    label: labelTextGroup
                 };
             }
             return; // Skip duplicate radios
@@ -164,13 +170,15 @@ function getFormData() {
             ...(options ? { options: options } : {}),
             hasLabel: hasLabel,
             hasAutocomplete: hasAutocomplete,
-            isRequired: el.required || false
+            isRequired: el.required || false,
+            label: labelText
         };
     });
 
     // console.log("📝 Collected form data with types + options:", data);
     return data;
 }
+
 
 // Helper: check if input has label
 function checkHasLabel(el) {
@@ -183,6 +191,28 @@ function checkHasLabel(el) {
         hasLabel = true;
     }
     return hasLabel;
+}
+
+// Helper: get the label text for an input element
+function getLabelText(el) {
+    let label = null;
+    if (el.id) {
+        label = document.querySelector(`label[for='${el.id}']`);
+        if (label) return label.innerText.trim();
+    }
+    // If wrapped in a <label>
+    let parentLabel = el.closest("label");
+    if (parentLabel) return parentLabel.innerText.trim();
+    // Try aria-labelledby
+    if (el.hasAttribute("aria-labelledby")) {
+        let ids = el.getAttribute("aria-labelledby").split(" ");
+        let texts = ids.map(id => {
+            let node = document.getElementById(id);
+            return node ? node.innerText.trim() : "";
+        });
+        return texts.join(" ").trim();
+    }
+    return null;
 }
 
 // Listen for messages from popup.js
