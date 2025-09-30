@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Form Collector",
+  "version": "1.0",
+  "description": "Collect all form fields from a webpage and send to Flask backend",
+  "permissions": ["activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
