@@ -196,32 +196,82 @@ function checkHasLabel(el) {
 }
 
 
+// Helper: get only the direct text content of a node (excluding children)
+function getDirectText(node) {
+    let text = '';
+    for (let child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            text += child.textContent;
+        }
+    }
+    return text.trim();
+}
+
 // Helper: get the label text for an input/select element
 function getLabelText(el, isSelect = false) {
     let label = null;
+    // 1. Try id/for match
     if (el.id) {
         label = document.querySelector(`label[for='${el.id}']`);
-        if (label) return label.innerText.trim();
+        if (label) return getDirectText(label);
     }
-    // If wrapped in a <label>
+    // 2. Try formcontrolname/for match (Angular)
+    if (el.hasAttribute('formcontrolname')) {
+        const fcName = el.getAttribute('formcontrolname');
+        label = document.querySelector(`label[for='${fcName}']`);
+        if (label) return getDirectText(label);
+    }
+    // 3. If wrapped in a <label>
     let parentLabel = el.closest("label");
-    if (parentLabel) return parentLabel.innerText.trim();
-    // Try aria-labelledby
+    if (parentLabel) return getDirectText(parentLabel);
+    // 4. Try aria-labelledby
     if (el.hasAttribute("aria-labelledby")) {
         let ids = el.getAttribute("aria-labelledby").split(" ");
         let texts = ids.map(id => {
             let node = document.getElementById(id);
-            return node ? node.innerText.trim() : "";
+            return node ? getDirectText(node) : "";
         });
         return texts.join(" ").trim();
     }
-    // For select, try to find a label immediately before
+    // 5. For select, try to find a label or div immediately before
     if (isSelect) {
         let prev = el.previousElementSibling;
-        if (prev && prev.tagName && prev.tagName.toLowerCase() === 'label') {
-            return prev.innerText.trim();
+        while (prev && (prev.tagName === 'INPUT' || prev.tagName === 'SELECT' || prev.tagName === 'TEXTAREA')) {
+            prev = prev.previousElementSibling;
+        }
+        if (prev) {
+            if (prev.tagName && prev.tagName.toLowerCase() === 'label') {
+                return getDirectText(prev);
+            }
+            if (prev.tagName && prev.tagName.toLowerCase() === 'div') {
+                return getDirectText(prev);
+            }
         }
     }
+    // 6. For all, try to find a div immediately before
+    let prev = el.previousElementSibling;
+    while (prev && (prev.tagName === 'INPUT' || prev.tagName === 'SELECT' || prev.tagName === 'TEXTAREA')) {
+        prev = prev.previousElementSibling;
+    }
+    if (prev && prev.tagName && prev.tagName.toLowerCase() === 'div') {
+        return getDirectText(prev);
+    }
+    // 7. Search parent containers for label-like elements (up to 3 levels up)
+    let container = el.parentElement;
+    let depth = 0;
+    while (container && depth < 3) {
+        // Look for label-like elements
+        let labelLike = container.querySelector('label, .label, .form-label, .mat-form-field-label, .mat-mdc-form-field-label, .MuiFormLabel-root');
+        if (labelLike && labelLike.innerText.trim()) return getDirectText(labelLike);
+        // Look for a div with label-like class
+        let divLabel = container.querySelector('div.label, div.form-label');
+        if (divLabel && divLabel.innerText.trim()) return getDirectText(divLabel);
+        container = container.parentElement;
+        depth++;
+    }
+    // 8. Fallback: aria-label or placeholder
+    if (el.hasAttribute('aria-label')) return el.getAttribute('aria-label').trim();
+    if (el.hasAttribute('placeholder')) return el.getAttribute('placeholder').trim();
     return null;
 }
 
@@ -231,29 +281,60 @@ function getGroupLabelText(sample, group) {
     let fieldset = sample.closest('fieldset');
     if (fieldset) {
         let legend = fieldset.querySelector('legend');
-        if (legend) return legend.innerText.trim();
+        if (legend) return getDirectText(legend);
     }
-    // Try label before the first element
+    // Try label or div before the first element
     let first = group[0];
     let prev = first.previousElementSibling;
     while (prev && (prev.tagName === 'INPUT' || prev.tagName === 'SELECT' || prev.tagName === 'TEXTAREA')) {
         prev = prev.previousElementSibling;
     }
-    if (prev && prev.tagName && prev.tagName.toLowerCase() === 'label') {
-        return prev.innerText.trim();
+    if (prev) {
+        if (prev.tagName && prev.tagName.toLowerCase() === 'label') {
+            return getDirectText(prev);
+        }
+        if (prev.tagName && prev.tagName.toLowerCase() === 'div') {
+            return getDirectText(prev);
+        }
+    }
+    // Try formcontrolname/for match (Angular)
+    if (first.hasAttribute('formcontrolname')) {
+        const fcName = first.getAttribute('formcontrolname');
+        let label = document.querySelector(`label[for='${fcName}']`);
+        if (label) return getDirectText(label);
+    }
+    // Try id/for match on group container
+    if (first.parentElement && first.parentElement.hasAttribute('id')) {
+        let groupId = first.parentElement.getAttribute('id');
+        let label = document.querySelector(`label[for='${groupId}']`);
+        if (label) return getDirectText(label);
+    }
+    // Search parent containers for label-like elements (up to 3 levels up)
+    let container = first.parentElement;
+    let depth = 0;
+    while (container && depth < 3) {
+        let labelLike = container.querySelector('label, .label, .form-label, .mat-form-field-label, .mat-mdc-form-field-label, .MuiFormLabel-root');
+        if (labelLike && labelLike.innerText.trim()) return getDirectText(labelLike);
+        let divLabel = container.querySelector('div.label, div.form-label');
+        if (divLabel && divLabel.innerText.trim()) return getDirectText(divLabel);
+        container = container.parentElement;
+        depth++;
     }
     // Try parent label
     let parentLabel = sample.closest('label');
-    if (parentLabel) return parentLabel.innerText.trim();
+    if (parentLabel) return getDirectText(parentLabel);
     // Try aria-labelledby
     if (sample.hasAttribute('aria-labelledby')) {
         let ids = sample.getAttribute('aria-labelledby').split(' ');
         let texts = ids.map(id => {
             let node = document.getElementById(id);
-            return node ? node.innerText.trim() : '';
+            return node ? getDirectText(node) : '';
         });
         return texts.join(' ').trim();
     }
+    // Fallback: aria-label or placeholder
+    if (sample.hasAttribute('aria-label')) return sample.getAttribute('aria-label').trim();
+    if (sample.hasAttribute('placeholder')) return sample.getAttribute('placeholder').trim();
     return null;
 }
 
