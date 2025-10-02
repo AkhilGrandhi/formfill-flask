@@ -354,3 +354,46 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({status: "success"});
     }
 });
+
+
+// ... your existing functions fillForm, getFormData, helpers ...
+
+// Listen for messages from popup.js
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    // console.log("📩 Message received in content.js:", msg);
+
+    if (msg.action === "collectFormData") {
+        let formData = getFormData();
+        // console.log("📤 Sending collected data back:", formData);
+        sendResponse(formData);
+
+    } else if (msg.action === "autofillForm") {
+        fillForm(msg.data);  // your autofill function
+        // console.log("✅ Form autofilled with data:", msg.data);
+        sendResponse({status: "success"});
+
+    } else if (msg.action === "mapAndAutofill") {
+        // Step 1: collect form structure
+        let formData = getFormData();
+
+        // Step 2: send to backend /gpt-map
+        fetch("http://127.0.0.1:5000/gpt-map", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ form: formData })
+        })
+        .then(res => res.json())
+        .then(mapped => {
+            // Step 3: auto fill using GPT’s mapping
+            fillForm(mapped);
+            // console.log("✅ Autofilled with GPT mapping:", mapped);
+            sendResponse({ status: "success", data: mapped });
+        })
+        .catch(err => {
+            console.error("❌ Error calling /gpt-map:", err);
+            sendResponse({ status: "error", error: err.toString() });
+        });
+
+        return true; // keep async channel open for fetch
+    }
+});
