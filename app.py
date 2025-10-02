@@ -18,7 +18,7 @@ logging.basicConfig(
 from openai import OpenAI
 
 # Hardcoded (local only)
-OPENAI_API_KEY = "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"
+#OPENAI_API_KEY = "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"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---------------------------
