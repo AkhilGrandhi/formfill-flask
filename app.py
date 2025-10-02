@@ -18,7 +18,7 @@ logging.basicConfig(
 from openai import OpenAI
 
 # Hardcoded (local only)
-OPENAI_API_KEY = ""
+OPENAI_API_KEY = "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"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---------------------------
@@ -145,25 +145,33 @@ def gpt_map():
 
         # Get sample data
         sample_json = json.loads(get_sample_data().data)
-
+        
+        print(f"INPUT: {form_json}")
         # Prompt to GPT
         prompt = f"""
-        You are an assistant that maps form fields to candidate data.
+        You are an intelligent assistant tasked with filling out a form using the provided candidate sample data.
 
-        Form JSON: {form_json}
+        Form JSON:
+        {form_json}
 
-        Sample Data: {sample_json}
+        Sample Data:
+        {sample_json}
 
-        Rules:
-        - Match fields if key names or labels are close (e.g. "Full Name" → firstName/lastName).
-        - Use values from sample data wherever possible.
-        - Keep output flat (no nested objects).
-        - If a field has no match, leave it "" or [] for checkboxes.
-        - For checkboxes → return an array.
-        - For radios → return a single value.
-
-        Return only valid JSON.
+        Instructions:
+        - Map each form field to the most relevant value in the sample data by comparing field names or labels (e.g., "Full Name" → firstName and lastName).
+        - Populate every field in the form with the most appropriate and accurate value from the sample data.
+        - The output must be a flat JSON object — no nested objects or arrays unless required (e.g., for checkboxes).
+        - Do not leave any fields blank unless it is a file upload field (e.g., resume, cover letter, etc.) or there is absolutely no relevant data.
+        - For fields like dropdowns, radio buttons, and checkboxes, select the most suitable value(s) based on context in the sample data.
+        - For dropdowns or radios → return a single string value.
+        - For checkboxes → return an array of selected options.
+        - If the sample value is a boolean (e.g., resumeUploaded), return the actual boolean value (`true` or `false`) — not the key name.
+        - If a field doesn't exactly match the sample data, infer the most logical value based on available options in the form JSON.
+        - Ensure all required fields are included and populated in the final output.
+        Return only valid, minified JSON. Do not include any explanation, comments, or extra formatting.
         """
+
+
 
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
