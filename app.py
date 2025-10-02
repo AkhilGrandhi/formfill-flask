@@ -13,7 +13,7 @@ CORS(app)
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Hardcoded (local only)
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = ""
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 @app.route("/submit", methods=["POST"])
