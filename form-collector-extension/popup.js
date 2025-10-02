@@ -34,46 +34,38 @@ document.getElementById("submitBtn").addEventListener("click", () => {
 document.getElementById("fillBtn").addEventListener("click", () => {
     console.log("🚀 Fill Form button clicked");
 
-    // Fetch sample data from Flask backend
-    fetch("http://127.0.0.1:5000/sample-data")
-        .then(res => res.json())
-        .then(sampleData => {
-            console.log("📥 Received sample data from Flask:", sampleData);
+    // Step 1: Collect current form structure from the webpage
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "collectFormData" }, (formResponse) => {
+            console.log("📥 Collected form structure:", formResponse);
 
-            chrome.tabs.query({active: true, currentWindow: true}, tabs => {
+            if (!formResponse) {
+                console.warn("⚠️ No form data collected");
+                return;
+            }
+
+            // Step 2: Send form structure to Flask GPT mapping endpoint
+            fetch("http://127.0.0.1:5000/gpt-map", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ form: formResponse })
+            })
+            .then(res => res.json())
+            .then(mappedData => {
+                console.log("🤖 GPT mapped data:", mappedData);
+
+                // Step 3: Send mapped data back to content.js for autofill
                 chrome.tabs.sendMessage(
                     tabs[0].id,
-                    { action: "autofillForm", data: sampleData },
+                    { action: "autofillForm", data: mappedData },
                     response => {
                         console.log("📤 Autofill response:", response);
                     }
                 );
-            });
-        })
-        .catch(err => console.error("❌ Error fetching sample data:", err));
+            })
+            .catch(err => console.error("❌ Error in GPT mapping:", err));
+        });
+    });
 });
 
-// document.getElementById("fillBtn").addEventListener("click", () => {
-//     const sampleData = {
-//     fullName: "John Doe",
-//     email: "johndoe@example.com",
-//     phone: "+1234567890",
-//     address: "123 Main St, Springfield, IL 62701",
-//     website: "https://johndoeportfolio.com",
-//     birthdate: "1985-07-15",
-//     meetingTime: "14:30",
-//     country: "US",
-//     experience: "6-10",
-//     employmentType: "full-time",
-//     remoteWork: "hybrid",
-//     skills: ["javascript", "react"],
-//     notifications: ["email", "sms"]
-//     };
 
-
-//     chrome.tabs.query({active: true, currentWindow: true}, tabs => {
-//         chrome.tabs.sendMessage(tabs[0].id, {action: "autofillForm", data: sampleData}, response => {
-//             console.log("📤 Autofill response:", response);
-//         });
-//     });
-// });
